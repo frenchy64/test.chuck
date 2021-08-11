@@ -390,15 +390,16 @@
 (defn mutually-recursive-gen
   "Create a mutually-recursive generator."
   [root-gen container-gens scalar-gen]
-  (let [prm (promise)
-        _ (deliver
+  (let [;; would be a promise if not for cljs interop
+        vol (volatile! nil)
+        _ (vreset!
             prm
             (into {}
                   (map (fn [[k container-gen]]
                          [k (gen/recursive-gen
                               (fn [rec]
                                 (container-gen
-                                  (assoc @prm k rec)))
+                                  (assoc @vol k rec)))
                               scalar-gen)]))
                   container-gens))]
-    (root-gen @prm)))
+    (root-gen @vol)))

@@ -165,7 +165,7 @@
   "Generates nested alternating vectors like
   [:ping [:pong [:ping nil]]]
   Uses lower-level gen'/mutual-gens."
-  (apply gen'/mutual-gens ping-pong-mutual-gens-args))
+  (gen'/mutual-gens ping-pong-mutual-gens-args))
 
 (defn valid-ping? [v]
   (loop [v v
@@ -252,7 +252,7 @@
     (gen/tuple ping
                pong
                (gen'/combine-mutual-gens ping-pong-gens)
-               (apply gen'/mutual-gen ping-pong-mutual-gens-args))))
+               (gen'/mutual-gen ping-pong-mutual-gens-args))))
 
 (defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all
@@ -268,9 +268,8 @@
 
 ;; c := (has-result c e) | boolean
 ;; e := (if c e e) | integer | (+ e e)
-#_
-(def ast-gens
-  (gen'/multi-mutual-gens
+(def ast-gen
+  (gen'/mutual-gen
     {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
                              (gen/tuple (gen/return 'has-result)
                                         (gen'/combine-mutual-gens c)
@@ -285,3 +284,23 @@
                                   (gen'/combine-mutual-gens e)
                                   (gen'/combine-mutual-gens e)))}
               gen/large-integer]}}))
+
+(def ast-gen-smaller
+  (gen'/mutual-gen
+    {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
+                             (gen/tuple (gen/return 'has-result)
+                                        (gen'/combine-mutual-gens c)
+                                        (gen'/combine-mutual-gens e)))}
+              gen/boolean]
+          :e [{:if (fn [{{:keys [c e]} :ce}]
+                     (gen/tuple (gen/return 'has-result)
+                                (gen'/combine-mutual-gens c)
+                                (gen'/combine-mutual-gens e)))}
+              gen/large-integer]}}))
+
+(comment
+  ((requiring-resolve 'clojure.repl/pst) 10000)
+  ;; FIXME stackoverflow
+  (gen/sample ast-gen)
+  (gen/sample ast-gen-smaller)
+  )

@@ -371,7 +371,7 @@
        [-2 13 -16 -4]
        [-3 -12 -1]
        [4 15]]]
-  There are atmost 2 nested levels, and no vector contains more than 10
+  There are at most 2 nested levels, and no vector contains more than 10
   elements."
   [container-gen-fn scalar-gen max-breadth max-height]
   (assert (gen/generator? scalar-gen)
@@ -387,8 +387,8 @@
                                   (min max-breadth (Math/pow size (/ 1 decay-factor)))
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
 
-
 (defn mutually-recursive-gen
+  "Create a mutually-recursive generator."
   [root-gen container-gens scalar-gen]
   (let [prm (promise)
         _ (deliver

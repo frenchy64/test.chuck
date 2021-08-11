@@ -389,9 +389,11 @@
 
 (defn mutually-recursive-gen
   "Create a mutually-recursive generator.
-  
-  scalar-gen is a generator for leaf values
-  root-gen is a generator for the overall 
+
+  :scalar-gen is a generator for leaf values
+  :container-gen-fns is a map from identifiers to functions.
+  root-gen is a function taking a map from identifiers
+  to generators.
   "
   [root-gen {:keys [container-gen-fns scalar-gen]}]
   (assert (map? container-gen-fns))

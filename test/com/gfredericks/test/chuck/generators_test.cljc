@@ -1,5 +1,6 @@
 (ns com.gfredericks.test.chuck.generators-test
-  (:require [clojure.test.check.clojure-test
+  (:require [clojure.test :refer [deftest is]]
+            [clojure.test.check.clojure-test
              #?(:clj :refer :cljs :refer-macros) [defspec]]
             [clojure.test.check.generators :as gen]
             [#?(:clj clj-time.core :cljs cljs-time.core) :as ct]
@@ -146,3 +147,127 @@
                                             10
                                             5)]
    (valid-bounded-rec-struct? 10 5 bounded-rec)))
+
+;; Mutually-recursive generators
+
+(def ping-generator
+  (gen'/mutually-recursive-gen
+    :ping
+    {:ping (fn [{:keys [pong]}]
+             (gen/tuple (gen/return "ping")
+                        pong))
+     :pong (fn [{:keys [ping]}]
+             (gen/tuple (gen/return "pong")
+                        ping))}
+    (gen/return nil)))
+
+(def pong-generator
+  (gen'/mutually-recursive-gen
+    :pong
+    {:ping (fn [{:keys [pong]}]
+             (gen/tuple (gen/return "ping")
+                        pong))
+     :pong (fn [{:keys [ping]}]
+             (gen/tuple (gen/return "pong")
+                        ping))}
+    (gen/return nil)))
+
+(defn valid-ping? [v]
+  (loop [v v
+         expected-first "ping"]
+    (or (nil? v)
+        (and (vector? v)
+             (= 2 (count v))
+             (if (= (first v) expected-first)
+               (case (first v)
+                 "ping" (recur (second v) "pong")
+                 "pong" (recur (second v) "ping"))
+               false)))))
+
+(defn valid-pong? [v]
+  (loop [v v
+         expected-first "pong"]
+    (or (nil? v)
+        (and (vector? v)
+             (= 2 (count v))
+             (if (= (first v) expected-first)
+               (case (first v)
+                 "ping" (recur (second v) "pong")
+                 "pong" (recur (second v) "ping"))
+               false)))))
+
+(def valid-ping-examples
+  [nil
+   ["ping" nil]
+   ["ping" ["pong" nil]]
+   ["ping" ["pong" ["ping" nil]]]])
+
+(def valid-pong-examples
+  [nil
+   ["pong" nil]
+   ["pong" ["ping" nil]]
+   ["pong" ["ping" ["pong" nil]]]])
+
+(def invalid-ping-examples
+  ["ping"
+   ["ping"]
+   ["ping" ["ping" nil]]
+   ["ping" ["pong" nil] "pong"]
+   ["ping" ["pong" ["pong" nil]]]])
+
+(def invalid-pong-examples
+  ["pong"
+   ["pong"]
+   ["pong" ["pong" nil]]
+   ["pong" ["ping" nil] "ping"]
+   ["pong" ["ping" ["ping" nil]]]])
+
+(deftest valid-ping-pong-test
+  (doseq [v valid-ping-examples]
+    (is (true? (valid-ping? v))
+        (pr-str v)))
+  (doseq [v (concat invalid-ping-examples
+                    valid-pong-examples)
+          ;; remove scalar values
+          :when (not (nil? v))]
+    (is (false? (valid-ping? v))
+        (pr-str v)))
+  (doseq [v valid-pong-examples]
+    (is (true? (valid-pong? v))
+        (pr-str v)))
+  (doseq [v (concat invalid-pong-examples
+                    valid-ping-examples)
+          ;; remove scalar values
+          :when (not (nil? v))]
+    (is (false? (valid-pong? v))
+        (pr-str v))))
+
+(defspec mutually-recursive-gen-ping-spec 100
+  (prop/for-all
+    [ping ping-generator]
+    (valid-ping? ping)))
+
+(defspec mutually-recursive-gen-pong-spec 100
+  (prop/for-all
+    [ping pong-generator]
+    (valid-pong? ping)))
+
+(def juxtaposed-ping-pong-generator
+  (gen'/mutually-recursive-gen
+    (fn [{:keys [ping pong]}]
+      (gen/tuple ping pong))
+    {:ping (fn [{:keys [pong]}]
+             (gen/tuple (gen/return "ping")
+                        pong))
+     :pong (fn [{:keys [ping]}]
+             (gen/tuple (gen/return "pong")
+                        ping))}
+    (gen/return nil)))
+
+(defspec mutually-recursive-gen-juxtaposed-ping-pong-generator-spec 100
+  (prop/for-all
+    [pp juxtaposed-ping-pong-generator]
+    (and (vector? pp)
+         (= 2 (count pp))
+         (valid-ping? (first pp))
+         (valid-pong? (second pp)))))

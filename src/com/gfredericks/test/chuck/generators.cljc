@@ -386,3 +386,19 @@
                                   size
                                   (min max-breadth (Math/pow size (/ 1 decay-factor)))
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
+
+
+(defn mutually-recursive-gen
+  [root-gen container-gens scalar-gen]
+  (let [prm (promise)
+        _ (deliver
+            prm
+            (into {}
+                  (map (fn [[k container-gen]]
+                         [k (gen/recursive-gen
+                              (fn [rec]
+                                (container-gen
+                                  (assoc @prm k rec)))
+                              scalar-gen)]))
+                  container-gens))]
+    (root-gen @prm)))

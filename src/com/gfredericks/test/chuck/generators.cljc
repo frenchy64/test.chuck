@@ -388,6 +388,35 @@
                                   (min max-breadth (Math/pow size (/ 1 decay-factor)))
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
 
+(defn multi-mutual-gens
+  [desc]
+  (let [;; would be a promise if not for cljs interop
+        vol (volatile! nil)
+        rec (fn rec [path desc]
+              (cond
+                (vector? desc)
+                (let [[container-gen-fns scalar-gen] desc]
+                  (into {}
+                        (map (fn [[inner container-gen]]
+                               [inner (gen/recursive-gen
+                                        (fn [rec]
+                                          (let [container-gens @vol]
+                                            (assert (map? container-gens))
+                                            (container-gen
+                                              (assoc-in container-gens (conj path inner) rec))))
+                                        scalar-gen)]))
+                        container-gen-fns))
+
+                (map? desc)
+                (into {}
+                      (map
+                        (fn [[outer desc]]
+                          [outer (rec (conj path outer) desc)]))
+                      desc)
+
+                :else (throw (AssertionError. (str "bad desc " (pr-str (class desc)))))))]
+    (vreset! vol (rec [] desc))))
+
 (defn mutual-gens
   "Create a map of mutually-recursive generators.
 
@@ -404,18 +433,9 @@
   [container-gen-fns scalar-gen]
   (assert (map? container-gen-fns))
   (assert (gen/generator? scalar-gen))
-  (let [;; would be a promise if not for cljs interop
-        vol (volatile! nil)]
-    (vreset!
-      vol
-      (into {}
-            (map (fn [[k container-gen]]
-                   [k (gen/recursive-gen
-                        (fn [rec]
-                          (container-gen
-                            (assoc @vol k rec)))
-                        scalar-gen)]))
-            container-gen-fns))))
+  (multi-mutual-gens
+    [container-gen-fns scalar-gen]))
+
 
 (defn combine-mutual-gens
   "Combine the result of mutual-gens into a single generator using a disjunction."

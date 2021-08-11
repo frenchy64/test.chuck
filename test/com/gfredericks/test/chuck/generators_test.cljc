@@ -266,7 +266,22 @@
 
 ;; AST's
 
+;; c := (has-result c e) | boolean
+;; e := (if c e e) | integer | (+ e e)
 #_
 (def ast-gens
-  (gen'/mutual-gens
-    {}))
+  (gen'/multi-mutual-gens
+    {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
+                             (gen/tuple (gen/return 'has-result)
+                                        (gen'/combine-mutual-gens c)
+                                        (gen'/combine-mutual-gens e)))}
+              gen/boolean]
+          :e [{:if (fn [{{:keys [c e]} :ce}]
+                     (gen/tuple (gen/return 'has-result)
+                                (gen'/combine-mutual-gens c)
+                                (gen'/combine-mutual-gens e)))
+               :plus (fn [{{:keys [c e]} :ce}]
+                       (gen/tuple (gen/return '+)
+                                  (gen'/combine-mutual-gens e)
+                                  (gen'/combine-mutual-gens e)))}
+              gen/large-integer]}}))

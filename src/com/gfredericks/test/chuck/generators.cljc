@@ -391,8 +391,11 @@
 (defn mutually-recursive-gens
   "Create mutually-recursive generators.
 
-  scalar-gen is a generator for leaf values
-  container-gen-fns is a map from identifiers to functions.
+  scalar-gen is a generator for leaf values.
+
+  container-gen-fns is a map from identifiers to functions. Each function
+  takes a map from these identifiers to their generators and should return
+  a generator.
   
   Returns a map of identitifers (from container-gen-fns) to their generators."
   [container-gen-fns scalar-gen]

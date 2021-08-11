@@ -396,8 +396,11 @@
   container-gen-fns is a map from identifiers to functions. Each function
   takes a map from these identifiers to their generators and should return
   a generator.
-  
-  Returns a map of identitifers (from container-gen-fns) to their generators."
+
+  Returns a map of identitifers (from container-gen-fns) to their generators.
+
+  Combine with gen/one-of to combine into a single generator:
+  (gen/one-of (vec (vals (mutual-gens container-gen-fns scalar-gen))))"
   [container-gen-fns scalar-gen]
   (assert (map? container-gen-fns))
   (assert (gen/generator? scalar-gen))
@@ -414,3 +417,9 @@
                               scalar-gen)]))
                   container-gen-fns))]
     @vol))
+
+(defn combine-mutual-gens
+  "Combine the result of mutual-gens into a single generator
+  using a disjunction."
+  [mgs-result]
+  (gen/one-of (vec (vals mgs-result))))

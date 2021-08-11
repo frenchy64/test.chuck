@@ -148,7 +148,9 @@
                                             5)]
    (valid-bounded-rec-struct? 10 5 bounded-rec)))
 
-;; Mutually-recursive generators
+;; # Mutually-recursive generators
+
+;; ping pong
 
 (def ping-pong-gens
   "Generates nested alternating vectors like
@@ -244,12 +246,22 @@
 
 (def juxtaposed-ping-pong-generator
   (let [{:keys [ping pong]} ping-pong-gens]
-    (gen/tuple ping pong)))
+    (gen/tuple ping
+               pong
+               (gen'/combine-mutual-gens ping-pong-gens))))
 
 (defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all
     [pp juxtaposed-ping-pong-generator]
     (and (vector? pp)
-         (= 2 (count pp))
+         (= 3 (count pp))
          (valid-ping? (first pp))
-         (valid-pong? (second pp)))))
+         (valid-pong? (second pp))
+         ((some-fn valid-ping? valid-pong?) (nth pp 2)))))
+
+;; AST's
+
+#_
+(def ast-gens
+  (gen'/mutual-gens
+    {:}))

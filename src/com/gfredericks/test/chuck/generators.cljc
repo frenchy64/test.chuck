@@ -335,6 +335,7 @@
                                            (dec curr-height))))))
 
 
+;; Note: this is the old implementation--test.check has a approach strategy now.
 (defn bounded-recursive-gen
   "Same as gen/recursive-gen but allows a bound on both breadth and height.
   Height = Number of levels of nesting. Eg:

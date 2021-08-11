@@ -393,7 +393,7 @@
   (let [;; would be a promise if not for cljs interop
         vol (volatile! nil)
         _ (vreset!
-            prm
+            vol
             (into {}
                   (map (fn [[k container-gen]]
                          [k (gen/recursive-gen

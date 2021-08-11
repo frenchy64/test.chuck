@@ -391,12 +391,12 @@
 (defn mutually-recursive-gen
   "Create a mutually-recursive generator.
 
+  The second argument should describe the mutually 
+
   :scalar-gen is a generator for leaf values
   :container-gen-fns is a map from identifiers to functions.
-  root-gen is a function taking a map from identifiers
-  to generators.
   "
-  [root-gen {:keys [container-gen-fns scalar-gen]}]
+  [container-gen-fns scalar-gen]
   (assert (map? container-gen-fns))
   (assert (gen/generator? scalar-gen))
   (let [;; would be a promise if not for cljs interop
@@ -411,4 +411,4 @@
                                   (assoc @vol k rec)))
                               scalar-gen)]))
                   container-gen-fns))]
-    (root-gen @vol)))
+    @vol))

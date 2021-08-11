@@ -388,14 +388,13 @@
                                   (min max-breadth (Math/pow size (/ 1 decay-factor)))
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
 
-(defn mutually-recursive-gen
-  "Create a mutually-recursive generator.
+(defn mutually-recursive-gens
+  "Create mutually-recursive generators.
 
-  The second argument should describe the mutually 
-
-  :scalar-gen is a generator for leaf values
-  :container-gen-fns is a map from identifiers to functions.
-  "
+  scalar-gen is a generator for leaf values
+  container-gen-fns is a map from identifiers to functions.
+  
+  Returns a map of identitifers (from container-gen-fns) to their generators."
   [container-gen-fns scalar-gen]
   (assert (map? container-gen-fns))
   (assert (gen/generator? scalar-gen))

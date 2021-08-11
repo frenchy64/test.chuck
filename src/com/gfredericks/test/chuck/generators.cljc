@@ -388,8 +388,14 @@
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
 
 (defn mutually-recursive-gen
-  "Create a mutually-recursive generator."
-  [root-gen container-gens scalar-gen]
+  "Create a mutually-recursive generator.
+  
+  scalar-gen is a generator for leaf values
+  root-gen is a generator for the overall 
+  "
+  [root-gen {:keys [container-gen-fns scalar-gen]}]
+  (assert (map? container-gen-fns))
+  (assert (gen/generator? scalar-gen))
   (let [;; would be a promise if not for cljs interop
         vol (volatile! nil)
         _ (vreset!
@@ -401,5 +407,5 @@
                                 (container-gen
                                   (assoc @vol k rec)))
                               scalar-gen)]))
-                  container-gens))]
+                  container-gen-fns))]
     (root-gen @vol)))

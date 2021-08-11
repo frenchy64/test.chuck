@@ -150,27 +150,24 @@
 
 ;; Mutually-recursive generators
 
+(def ping-pong-gen-desc
+  {:container-gen-fns {:ping (fn [{:keys [pong]}]
+                               (gen/tuple (gen/return "ping")
+                                          pong))
+                       :pong (fn [{:keys [ping]}]
+                               (gen/tuple (gen/return "pong")
+                                          ping))}
+   :scalar-gen (gen/return nil)})
+
 (def ping-generator
   (gen'/mutually-recursive-gen
     :ping
-    {:ping (fn [{:keys [pong]}]
-             (gen/tuple (gen/return "ping")
-                        pong))
-     :pong (fn [{:keys [ping]}]
-             (gen/tuple (gen/return "pong")
-                        ping))}
-    (gen/return nil)))
+    ping-pong-gen-desc))
 
 (def pong-generator
   (gen'/mutually-recursive-gen
     :pong
-    {:ping (fn [{:keys [pong]}]
-             (gen/tuple (gen/return "ping")
-                        pong))
-     :pong (fn [{:keys [ping]}]
-             (gen/tuple (gen/return "pong")
-                        ping))}
-    (gen/return nil)))
+    ping-pong-gen-desc))
 
 (defn valid-ping? [v]
   (loop [v v
@@ -256,13 +253,7 @@
   (gen'/mutually-recursive-gen
     (fn [{:keys [ping pong]}]
       (gen/tuple ping pong))
-    {:ping (fn [{:keys [pong]}]
-             (gen/tuple (gen/return "ping")
-                        pong))
-     :pong (fn [{:keys [ping]}]
-             (gen/tuple (gen/return "pong")
-                        ping))}
-    (gen/return nil)))
+    ping-pong-gen-desc))
 
 (defspec mutually-recursive-gen-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all

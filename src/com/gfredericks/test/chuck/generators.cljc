@@ -405,18 +405,17 @@
   (assert (map? container-gen-fns))
   (assert (gen/generator? scalar-gen))
   (let [;; would be a promise if not for cljs interop
-        vol (volatile! nil)
-        _ (vreset!
-            vol
-            (into {}
-                  (map (fn [[k container-gen]]
-                         [k (gen/recursive-gen
-                              (fn [rec]
-                                (container-gen
-                                  (assoc @vol k rec)))
-                              scalar-gen)]))
-                  container-gen-fns))]
-    @vol))
+        vol (volatile! nil)]
+    (vreset!
+      vol
+      (into {}
+            (map (fn [[k container-gen]]
+                   [k (gen/recursive-gen
+                        (fn [rec]
+                          (container-gen
+                            (assoc @vol k rec)))
+                        scalar-gen)]))
+            container-gen-fns))))
 
 (defn combine-mutual-gens
   "Combine the result of mutual-gens into a single generator using a disjunction."

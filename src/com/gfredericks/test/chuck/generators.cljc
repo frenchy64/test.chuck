@@ -397,7 +397,7 @@
   takes a map from these identifiers to their generators and should return
   a generator.
 
-  Returns a map of identitifers (from container-gen-fns) to their generators.
+  Returns a map of identifiers (from container-gen-fns) to their generators.
 
   Combine with gen/one-of to combine into a single generator:
   (gen/one-of (vec (vals (mutual-gens container-gen-fns scalar-gen))))"

@@ -419,7 +419,12 @@
     @vol))
 
 (defn combine-mutual-gens
-  "Combine the result of mutual-gens into a single generator
-  using a disjunction."
+  "Combine the result of mutual-gens into a single generator using a disjunction."
   [mgs-result]
   (gen/one-of (vec (vals mgs-result))))
+
+(defn mutual-gen
+  ""
+  [container-gen-fns scalar-gen]
+  (-> (mutual-gens container-gen-fns scalar-gen)
+      combine-mutual-gens))

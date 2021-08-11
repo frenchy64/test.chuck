@@ -152,17 +152,20 @@
 
 ;; ping pong
 
+(def ping-pong-mutual-gens-args
+  [{:ping (fn [{:keys [pong]}]
+            (gen/tuple (gen/return :ping)
+                       pong))
+    :pong (fn [{:keys [ping]}]
+            (gen/tuple (gen/return :pong)
+                       ping))}
+   (gen/return nil)])
+
 (def ping-pong-gens
   "Generates nested alternating vectors like
-  [:ping [:pong [:ping nil]]]"
-  (gen'/mutual-gens
-    {:ping (fn [{:keys [pong]}]
-             (gen/tuple (gen/return :ping)
-                        pong))
-     :pong (fn [{:keys [ping]}]
-             (gen/tuple (gen/return :pong)
-                        ping))}
-    (gen/return nil)))
+  [:ping [:pong [:ping nil]]]
+  Uses lower-level gen'/mutual-gens."
+  (apply gen'/mutual-gens ping-pong-mutual-gens-args))
 
 (defn valid-ping? [v]
   (loop [v v
@@ -248,16 +251,18 @@
   (let [{:keys [ping pong]} ping-pong-gens]
     (gen/tuple ping
                pong
-               (gen'/combine-mutual-gens ping-pong-gens))))
+               (gen'/combine-mutual-gens ping-pong-gens)
+               (apply gen'/mutual-gen ping-pong-mutual-gens-args))))
 
 (defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all
     [pp juxtaposed-ping-pong-generator]
     (and (vector? pp)
-         (= 3 (count pp))
-         (valid-ping? (first pp))
-         (valid-pong? (second pp))
-         ((some-fn valid-ping? valid-pong?) (nth pp 2)))))
+         (= 4 (count pp))
+         (valid-ping? (nth pp 0))
+         (valid-pong? (nth pp 1))
+         ((some-fn valid-ping? valid-pong?) (nth pp 2))
+         ((some-fn valid-ping? valid-pong?) (nth pp 3)))))
 
 ;; AST's
 

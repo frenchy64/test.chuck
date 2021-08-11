@@ -388,8 +388,8 @@
                                   (min max-breadth (Math/pow size (/ 1 decay-factor)))
                                   (min max-height (Math/pow size (/ 1 (inc decay-factor))))))))))
 
-(defn mutually-recursive-gens
-  "Create mutually-recursive generators.
+(defn mutual-gens
+  "Create a map of mutually-recursive generators.
 
   scalar-gen is a generator for leaf values.
 

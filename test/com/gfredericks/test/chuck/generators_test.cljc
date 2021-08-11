@@ -151,7 +151,7 @@
 ;; Mutually-recursive generators
 
 (def ping-pong-gens
-  (gen'/mutually-recursive-gens
+  (gen'/mutual-gens
     {:ping (fn [{:keys [pong]}]
              (gen/tuple (gen/return "ping")
                         pong))
@@ -236,12 +236,12 @@
     (is (false? (valid-pong? v))
         (pr-str v))))
 
-(defspec mutually-recursive-gens-ping-spec 100
+(defspec mutual-gens-ping-spec 100
   (prop/for-all
     [ping ping-generator]
     (valid-ping? ping)))
 
-(defspec mutually-recursive-gens-pong-spec 100
+(defspec mutual-gens-pong-spec 100
   (prop/for-all
     [ping pong-generator]
     (valid-pong? ping)))
@@ -250,7 +250,7 @@
   (let [{:keys [ping pong]} ping-pong-gens]
     (gen/tuple ping pong)))
 
-(defspec mutually-recursive-gens-juxtaposed-ping-pong-generator-spec 100
+(defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all
     [pp juxtaposed-ping-pong-generator]
     (and (vector? pp)

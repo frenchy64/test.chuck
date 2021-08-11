@@ -151,70 +151,66 @@
 ;; Mutually-recursive generators
 
 (def ping-pong-gens
+  "Generates nested alternating vectors like
+  [:ping [:pong [:ping nil]]]"
   (gen'/mutual-gens
     {:ping (fn [{:keys [pong]}]
-             (gen/tuple (gen/return "ping")
+             (gen/tuple (gen/return :ping)
                         pong))
      :pong (fn [{:keys [ping]}]
-             (gen/tuple (gen/return "pong")
+             (gen/tuple (gen/return :pong)
                         ping))}
     (gen/return nil)))
 
-(def ping-generator
-  (:ping ping-pong-gens))
-
-(def pong-generator
-  (:pong ping-pong-gens))
-
 (defn valid-ping? [v]
   (loop [v v
-         expected-first "ping"]
+         expected-first :ping]
     (or (nil? v)
         (and (vector? v)
              (= 2 (count v))
              (if (= (first v) expected-first)
                (case (first v)
-                 "ping" (recur (second v) "pong")
-                 "pong" (recur (second v) "ping"))
+                 :ping (recur (second v) :pong)
+                 :pong (recur (second v) :ping))
                false)))))
 
 (defn valid-pong? [v]
   (loop [v v
-         expected-first "pong"]
+         expected-first :pong]
     (or (nil? v)
         (and (vector? v)
              (= 2 (count v))
              (if (= (first v) expected-first)
                (case (first v)
-                 "ping" (recur (second v) "pong")
-                 "pong" (recur (second v) "ping"))
+                 :ping (recur (second v) :pong)
+                 :pong (recur (second v) :ping))
                false)))))
 
 (def valid-ping-examples
   [nil
-   ["ping" nil]
-   ["ping" ["pong" nil]]
-   ["ping" ["pong" ["ping" nil]]]])
+   [:ping nil]
+   [:ping [:pong nil]]
+   [:ping [:pong [:ping nil]]]])
 
 (def valid-pong-examples
   [nil
-   ["pong" nil]
-   ["pong" ["ping" nil]]
-   ["pong" ["ping" ["pong" nil]]]])
+   [:pong nil]
+   [:pong [:ping nil]]
+   [:pong [:ping [:pong nil]]]])
 
 (def invalid-ping-examples
-  ["ping"
-   ["ping"]
-   ["ping" ["ping" nil]]
-   ["ping" ["pong" nil] "pong"]
-   ["ping" ["pong" ["pong" nil]]]])
+  [:ping
+   [:ping]
+   [:ping [:ping nil]]
+   [:ping [:pong nil] :pong]
+   [:ping [:pong [:pong nil]]]])
 
 (def invalid-pong-examples
-  ["pong"
-   ["pong"]
-   ["pong" ["pong" nil]]
-   ["pong" ["ping" nil] "ping"]
-   ["pong" ["ping" ["ping" nil]]]])
+  [:pong
+   [:pong]
+   [:pong [:pong nil]]
+   [:pong [:ping nil] :ping]
+   [:pong [:ping [:ping nil]]]])
 
 (deftest valid-ping-pong-test
   (doseq [v valid-ping-examples]
@@ -238,12 +234,12 @@
 
 (defspec mutual-gens-ping-spec 100
   (prop/for-all
-    [ping ping-generator]
+    [ping (:ping ping-pong-gens)]
     (valid-ping? ping)))
 
 (defspec mutual-gens-pong-spec 100
   (prop/for-all
-    [ping pong-generator]
+    [ping (:pong ping-pong-gens)]
     (valid-pong? ping)))
 
 (def juxtaposed-ping-pong-generator

@@ -420,6 +420,7 @@
 (defn combine-mutual-gens
   "Combine the result of mutual-gens into a single generator using a disjunction."
   [mgs-result]
+  (assert (map? mgs-result))
   (gen/one-of (vec (vals mgs-result))))
 
 (defn mutual-gen

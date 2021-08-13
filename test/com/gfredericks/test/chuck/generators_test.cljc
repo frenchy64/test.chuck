@@ -285,6 +285,12 @@
                                   (gen'/combine-mutual-gens e)))}
               gen/large-integer]}}))
 
+(comment
+  (gen/recursive-gen
+    (fn [])
+    [])
+  )
+
 (def ast-gen-smaller
   (gen'/mutual-gen
     {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
@@ -301,6 +307,6 @@
 (comment
   ((requiring-resolve 'clojure.repl/pst) 10000)
   ;; FIXME stackoverflow
-  (gen/sample ast-gen)
+  (first (gen/generate ast-gen 100))
   (gen/sample ast-gen-smaller)
   )

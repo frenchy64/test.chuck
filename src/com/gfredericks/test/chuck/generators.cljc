@@ -412,7 +412,7 @@
                   (assert (map? container-gen-fns))
                   (assert (gen/generator? scalar-gen))
                   (if (empty? container-gen-fns)
-                    {:scalar scalar-gen}
+                    scalar-gen
                     (into {}
                           (map (fn [[inner container-gen]]
                                  [inner (gen/recursive-gen

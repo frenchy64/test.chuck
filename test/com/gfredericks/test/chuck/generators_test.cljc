@@ -153,13 +153,54 @@
 ;; ping pong
 
 (def ping-pong-mutual-gens-args
-  [{:ping (fn [{:keys [pong]}]
-            (gen/tuple (gen/return :ping)
-                       pong))
-    :pong (fn [{:keys [ping]}]
-            (gen/tuple (gen/return :pong)
-                       ping))}
-   (gen/return nil)])
+  {:ping (fn [gen-for]
+           (gen/tuple (gen/return :ping)
+                      (gen-for [:pong])))
+   :pong (fn [gen-for]
+           (gen/tuple (gen/return :pong)
+                      (gen-for [:ping])))
+   :nil (gen/return nil)})
+
+(comment
+  (gen/one-of
+    [(gen/recursive-gen
+       (fn [ping]
+         (gen/tuple (gen/return :ping)
+                    (gen/recursive-gen
+                      (fn [pong]
+                        (gen/tuple (gen/return :pong)
+                                   ping))
+                      (gen/return nil))))
+       (gen/return nil))
+     (gen/recursive-gen
+       (fn [ping]
+         (gen/tuple (gen/return :ping)
+                    (gen/recursive-gen
+                      (fn [pong]
+                        (gen/tuple (gen/return :pong)
+                                   ping))
+                      (gen/return nil))))
+       (gen/return nil))
+     (gen/return nil)])
+  (gen/one-of
+    [(gen/recursive-gen
+       (fn [ping]
+         (gen/tuple (gen/return :ping)
+                    (gen/recursive-gen
+                      (fn [pong]
+                        (gen/tuple (gen/return :pong)
+                                   ping))
+                      (gen/return nil))))
+       (gen/return nil))
+     (let [gs {}]
+       (gen/recursive-gen
+         (fn [pong]
+           (let [gs (assoc gs :pong pong)]
+             (gen/tuple (gen/return :pong)
+                        (gen-for gs [:ping]))))
+         (gen/return nil)))
+     (gen/return nil)])
+  )
 
 (def ping-pong-gens
   "Generates nested alternating vectors like
@@ -293,20 +334,35 @@
 
 (def ast-gen-smaller
   (gen'/mutual-gen
-    {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
-                             (gen/tuple (gen/return 'has-result)
-                                        (gen'/combine-mutual-gens c)
-                                        (gen'/combine-mutual-gens e)))}
-              gen/boolean]
-          :e [{:if (fn [{{:keys [c e]} :ce}]
-                     (gen/tuple (gen/return 'has-result)
-                                (gen'/combine-mutual-gens c)
-                                (gen'/combine-mutual-gens e)))}
-              gen/large-integer]}}))
+    {:ce {:c {:has-result (fn [gen-for]
+                            (gen/tuple (gen/return 'has-result)
+                                       (gen-for [:ce :c])
+                                       (gen-for [:ce :e])))
+              :boolean gen/boolean}
+          :e {:if (fn [gen-for]
+                    (gen/tuple (gen/return 'if)
+                               (gen-for [:ce :c])
+                               (gen-for [:ce :e])))
+              :integer gen/large-integer}}}))
+
+#_
+(def ast-gen-smaller
+  (gen'/mutual-gen
+    {:ce {:c {:has-result (fn [gen-for]
+                            (gen/tuple (gen/return 'has-result)
+                                       (gen-for [:ce :c])
+                                       (gen-for [:ce :e])))
+              :boolean gen/boolean}
+          :e {:if (fn [gen-for]
+                    (gen/tuple (gen/return 'if)
+                               (gen-for [:ce :c])
+                               (gen-for [:ce :e])))}}
+     ;; inherited
+     :integer gen/large-integer}))
 
 (comment
   ((requiring-resolve 'clojure.repl/pst) 10000)
   ;; FIXME stackoverflow
-  (first (gen/generate ast-gen 100))
+  (gen/generate ast-gen 0)
   (gen/sample ast-gen-smaller)
   )

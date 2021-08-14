@@ -311,20 +311,20 @@
 ;; e := (if c e e) | integer | (+ e e)
 (def ast-gen
   (gen'/mutual-gen
-    {:ce {:c [{:has-result (fn [{{:keys [c e]} :ce}]
-                             (gen/tuple (gen/return 'has-result)
-                                        (gen'/combine-mutual-gens c)
-                                        (gen'/combine-mutual-gens e)))}
-              gen/boolean]
-          :e [{:if (fn [{{:keys [c e]} :ce}]
-                     (gen/tuple (gen/return 'has-result)
-                                (gen'/combine-mutual-gens c)
-                                (gen'/combine-mutual-gens e)))
-               :plus (fn [{{:keys [c e]} :ce}]
-                       (gen/tuple (gen/return '+)
-                                  (gen'/combine-mutual-gens e)
-                                  (gen'/combine-mutual-gens e)))}
-              gen/large-integer]}}))
+    {:ce {:c {:has-result (fn [gen-for]
+                            (gen/tuple (gen/return 'has-result)
+                                       (gen-for [:ce :c])
+                                       (gen-for [:ce :e])))
+              :boolean gen/boolean}
+          :e {:if (fn [gen-for]
+                    (gen/tuple (gen/return 'has-result)
+                               (gen-for [:ce :c])
+                               (gen-for [:ce :e])))
+              :plus (fn [gen-for]
+                      (gen/tuple (gen/return '+)
+                                 (gen-for [:ce :e])
+                                 (gen-for [:ce :e])))
+              :integer gen/large-integer}}}))
 
 (comment
   (gen/recursive-gen
@@ -363,7 +363,97 @@
 
 (comment
   ((requiring-resolve 'clojure.repl/pst) 10000)
-  ;; FIXME stackoverflow
-  (gen/generate ast-gen 0)
+  (gen/sample ast-gen)
   (gen/sample ast-gen-smaller)
+  )
+
+;; From https://github.com/frenchy64/mini-occ/blob/288625d9ea0204a1724fe404cc2c5c125f1af403/src/mini_occ/core.clj#L11-L14
+
+;;  e  ::= x | (if e e e) | (lambda (x :- t) e) | (e e*) | #f | n? | add1
+;;  t  ::= [x : t -> t] | (not t) | (or t t) | (and t t) | #f | N | Any
+;;  p  ::= (is e t) | (not p) | (or p p) | (and p p) | (= e e)
+;;  ps ::= p*
+
+(defn list-tuple [& args]
+  (gen/fmap #(apply list %) (apply gen/tuple args)))
+
+(defn list-tuple* [& args]
+  (assert args)
+  (gen/fmap (fn [[bl l]]
+              (apply list (concat bl l)))
+            (gen/tuple (apply gen/tuple (butlast args))
+                       (last args))))
+
+(def mini-occ-gens
+  (gen'/mutual-gens
+    {:e {:x gen/symbol
+         :if (fn [gen-for]
+               (list-tuple (gen/return 'if)
+                           (gen-for [:e])
+                           (gen-for [:e])
+                           (gen-for [:e])))
+         :lambda (fn [gen-for]
+                   (list-tuple (gen/return 'lambda)
+                               (list-tuple (gen-for [:e :x])
+                                           (gen/return :-)
+                                           (gen-for [:t]))
+                               (gen-for [:e])
+                               (gen-for [:e])
+                               (gen-for [:e])))
+         :app (fn [gen-for]
+                (list-tuple* (gen-for [:e])
+                             (gen/list (gen-for [:e]))))
+         :false (gen/return false)
+         :number gen/large-integer
+         :add1 (gen/return 'add1)}
+     :t {:fn (fn [gen-for]
+               (gen/tuple (gen-for [:e :x])
+                          (gen/return :-)
+                          (gen-for [:t])
+                          (gen/return :->)
+                          (gen-for [:t])))
+         :not (fn [gen-for]
+                (list-tuple (gen/return 'not)
+                            (gen-for [:t])))
+         :or (fn [gen-for]
+               (list-tuple (gen/return 'or)
+                           (gen-for [:t])
+                           (gen-for [:t])))
+         :and (fn [gen-for]
+                (list-tuple (gen/return 'and)
+                            (gen-for [:t])
+                            (gen-for [:t])))
+         :false (gen/return false)
+         :N (gen/return 'N)
+         :Any (gen/return 'Any)}
+     :p {;; FIXME punt
+         :fake-leaf-gen (gen/return :fake-leaf-gen)
+         ;; hmm this is a leaf gen :)
+         ;; idea: search for leaf gens by stubbing gen-for and collecting paths.
+         :is (fn [gen-for]
+               (list-tuple (gen/return 'is)
+                           (gen-for [:e])
+                           (gen-for [:t])))
+         ;; also a leaf gen
+         :eq (fn [gen-for]
+               (list-tuple (gen/return '=)
+                           (gen-for [:e])
+                           (gen-for [:e])))
+         :not (fn [gen-for]
+                (list-tuple (gen/return 'not)
+                            (gen-for [:p])))
+         :or (fn [gen-for]
+               (list-tuple (gen/return 'or)
+                           (gen-for [:p])
+                           (gen-for [:p])))
+         :and (fn [gen-for]
+                (list-tuple (gen/return 'and)
+                            (gen-for [:p])
+                            (gen-for [:p])))}}))
+
+(comment
+  (gen/sample
+    (gen'/combine-mutual-gens
+      (:e mini-occ-gens)))
+  (do mini-occ-gens)
   )

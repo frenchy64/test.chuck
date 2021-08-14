@@ -353,12 +353,13 @@
                                        (gen-for [:ce :c])
                                        (gen-for [:ce :e])))
               :boolean gen/boolean}
-          :e {:if (fn [gen-for]
-                    (gen/tuple (gen/return 'if)
-                               (gen-for [:ce :c])
-                               (gen-for [:ce :e])))}}
-     ;; inherited
-     :integer gen/large-integer}))
+          :e ^{::gen'/frequency 5
+               ::gen'/shrink-order -1}
+          {:if (fn [gen-for]
+                 (gen/tuple (gen/return 'if)
+                            (gen-for [:ce :c])
+                            (gen-for [:ce :e])))
+           :boolean gen/boolean}}}))
 
 (comment
   ((requiring-resolve 'clojure.repl/pst) 10000)

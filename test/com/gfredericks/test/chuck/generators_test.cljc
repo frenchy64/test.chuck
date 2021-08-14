@@ -372,7 +372,6 @@
 ;;  e  ::= x | (if e e e) | (lambda (x :- t) e) | (e e*) | #f | n? | add1
 ;;  t  ::= [x : t -> t] | (not t) | (or t t) | (and t t) | #f | N | Any
 ;;  p  ::= (is e t) | (not p) | (or p p) | (and p p) | (= e e)
-;;  ps ::= p*
 
 (defn list-tuple [& args]
   (gen/fmap #(apply list %) (apply gen/tuple args)))
@@ -430,6 +429,8 @@
          :fake-leaf-gen (gen/return :fake-leaf-gen)
          ;; hmm this is a leaf gen :)
          ;; idea: search for leaf gens by stubbing gen-for and collecting paths.
+         ;; ah, but what about (gen/list (gen-for [:p]))? since it can generate the
+         ;; empty list, it is a leaf gen.
          :is (fn [gen-for]
                (list-tuple (gen/return 'is)
                            (gen-for [:e])

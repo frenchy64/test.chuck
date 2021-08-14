@@ -417,7 +417,7 @@
 
 (comment
   (gen/sample
-    (mutual-gen
+    (mutual-gens
       {:ping (fn [gen-for]
                (gen/tuple (gen/return :ping)
                           (gen-for [:pong])))
@@ -425,15 +425,24 @@
                (gen/tuple (gen/return :pong)
                           (gen-for [:ping])))
        :nil (gen/return nil)}))
-  (mutual-gen
-    {:Ping {:ping (fn [gen-for]
-                    (gen/tuple (gen/return :ping)
-                               (gen-for [:Ping])))
-            :nil (gen/return nil)}})
-  (mutual-gen
-    {:ping (fn [gen-for]
-             (gen/tuple (gen/return :ping)))
-     :nil (gen/return nil)})
+  ;;FIXME generated values are too large
+  (gen/generate
+    (mutual-gen
+      {:Ping {:ping (fn [gen-for]
+                      (gen/tuple (gen/return :ping)
+                                 (gen-for [:Ping])))
+              :nil (gen/return nil)}}))
+  (gen/sample
+    (mutual-gen
+      {:ping (fn [gen-for]
+               (gen/tuple (gen/return :ping)
+                          (gen-for [:ping])))
+       :nil (gen/return nil)}))
+  (gen/sample
+    (mutual-gen
+      {:ping (fn [gen-for]
+               (gen/tuple (gen/return :ping)))
+       :nil (gen/return nil)}))
   ((requiring-resolve 'clojure.repl/pst) 1000)
   (gen/sample
     (mutual-gen
@@ -454,10 +463,9 @@
   Combine with gen/one-of to combine into a single generator:
   (gen/one-of (vec (vals (mutual-gens container-gen-fns scalar-gen))))"
   [root-desc]
-  (prn "root-desc" root-desc)
-  (let [;; would be a promise if not for cljs interop
-        rec (fn rec [path desc gs]
-              (prn "rec desc" [path desc gs])
+  ;(prn "root-desc" root-desc)
+  (let [rec (fn rec [path desc gs]
+              ;(prn "rec desc" [path desc gs])
               (let [rdesc (->
                             (cond
                               (gen/generator? desc) desc
@@ -465,11 +473,9 @@
                               (map? desc)
                               (let [_ (assert (seq desc) "Desc must be non-empty")
                                     [scalar-gens non-scalar-gens] (map #(into {} (% (comp gen/generator? val)) desc)
-                                                                       [filter remove])
-                                    scalar-gen (when (seq scalar-gens)
-                                                 (gen/one-of (vec (vals scalar-gens))))]
+                                                                       [filter remove])]
                                 (if (empty? non-scalar-gens)
-                                  scalar-gen
+                                  scalar-gens
                                   (into (into {}
                                               ;; add scalars so they can be manually extracted by users, but
                                               ;; use zero frequency since they are implicitly part of
@@ -484,7 +490,6 @@
                                                       (gen/generator? desc) desc
                                                       (map? desc) (rec (conj path inner-k) desc gs)
                                                       (ifn? desc) (let [container-gen desc]
-                                                                    (assert scalar-gen [path desc gs])
                                                                     (gen/recursive-gen
                                                                       (fn [rec-generator]
                                                                         (let [gs (assoc gs (conj path inner-k) rec-generator)]
@@ -493,16 +498,16 @@
                                                                               {:post [(gen/generator? %)]}
                                                                               (assert (seq p))
                                                                               (assert (vector? p))
-                                                                              (prn "gs p" [gs p])
+                                                                              ;(prn "gs p" [gs p])
                                                                               (or (get gs p)
                                                                                   (let [gr (get-in root-desc p)
                                                                                         _ (assert gr
                                                                                                   (str "No path " p " in desc " root-desc))
-                                                                                        _ (prn "gr" gr)
+                                                                                        ;_ (prn "gr" gr)
                                                                                         rdesc (rec p gr gs)]
                                                                                     (combine-mutual-gens
                                                                                       rdesc)))))))
-                                                                      scalar-gen))
+                                                                      (gen/one-of (vec (vals scalar-gens)))))
                                                       :else (throw (AssertionError. (str "bad inner desc " (pr-str (class desc))))))
                                                     (with-meta (meta desc)))]))
                                         non-scalar-gens)))

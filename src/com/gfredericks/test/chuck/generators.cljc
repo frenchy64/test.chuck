@@ -417,7 +417,7 @@
 
 (comment
   (gen/sample
-    (mutual-gens
+    (mutual-gen
       {:ping (fn [gen-for]
                (gen/tuple (gen/return :ping)
                           (gen-for [:pong])))
@@ -425,12 +425,11 @@
                (gen/tuple (gen/return :pong)
                           (gen-for [:ping])))
        :nil (gen/return nil)}))
-  ;;FIXME generated values are too large
   (gen/generate
     (mutual-gen
-      {:Ping {:ping (fn [gen-for]
+      {:Ping {:ping (fn [gen-at]
                       (gen/tuple (gen/return :ping)
-                                 (gen-for [:Ping])))
+                                 (gen-at [:Ping])))
               :nil (gen/return nil)}}))
   (gen/sample
     (mutual-gen
@@ -500,7 +499,12 @@
                                                                               (assert (vector? p))
                                                                               ;(prn "gs p" [gs p])
                                                                               (or (get gs p)
-                                                                                  (let [gr (get-in root-desc p)
+                                                                                  (let [root-desc (reduce
+                                                                                                    (fn [desc [path g]]
+                                                                                                      (assoc-in desc path g))
+                                                                                                    root-desc
+                                                                                                    gs)
+                                                                                        gr (get-in root-desc p)
                                                                                         _ (assert gr
                                                                                                   (str "No path " p " in desc " root-desc))
                                                                                         ;_ (prn "gr" gr)

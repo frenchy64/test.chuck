@@ -453,8 +453,9 @@
                             (gen-for [:p])))}}))
 
 (comment
-  (gen/sample
+  (gen/generate
     (gen'/combine-mutual-gens
-      (:e mini-occ-gens)))
+      (:e mini-occ-gens))
+    100)
   (do mini-occ-gens)
   )

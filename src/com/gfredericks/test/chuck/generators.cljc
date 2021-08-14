@@ -477,7 +477,7 @@
               {:pre [(vector? path)
                      (map? gs)
                      (every? gen/generator? (vals gs))]}
-              (prn "rec desc" [path desc gs])
+              ;(prn "rec desc" [path desc gs])
               (let [rdesc 
                     (cond
                       (gen/generator? desc) desc
@@ -505,7 +505,7 @@
                                                                      {:post [(gen/generator? %)]}
                                                                      (assert (seq p))
                                                                      (assert (vector? p))
-                                                                     (prn "gen-rec p" [(vec (keys gs)) p])
+                                                                     ;(prn "gen-rec p" [(vec (keys gs)) p])
                                                                      (or
                                                                        (get gs p)
                                                                        (let [root-desc
@@ -528,7 +528,7 @@
                                                                              gr (get-in root-desc p)
                                                                              _ (assert gr
                                                                                        (str "No path " p " in desc " root-desc))
-                                                                             _ (prn "gen-rec rdesc" p gr gs)
+                                                                             ;_ (prn "gen-rec rdesc" p gr gs)
                                                                              rdesc (cond
                                                                                      (gen/generator? gr) gr
                                                                                      (map? gr) (rec p gr gs)

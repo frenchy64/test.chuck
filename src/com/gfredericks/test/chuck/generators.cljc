@@ -1,17 +1,12 @@
 (ns com.gfredericks.test.chuck.generators
   "Yes this namespace's name has five components."
-  (:refer-clojure :exclude [double for partition prn])
+  (:refer-clojure :exclude [double for partition])
   #?(:cljs (:require-macros [com.gfredericks.test.chuck.generators :refer [for]]))
   (:require [clojure.test.check.generators :as gen]
             [#?(:clj clojure.core :cljs cljs.core) :as core]
             [#?(:clj clj-time.core :cljs cljs-time.core) :as ct]
             [#?(:clj clj-time.coerce :cljs cljs-time.coerce) :as ctc]
             #?(:clj [com.gfredericks.test.chuck.regexes :as regexes])))
-
-(let [out *out*]
-  (defn- prn [& args]
-    (binding [*out* out]
-      (apply clojure.core/prn args))))
 
 ;; Hoping this will be in test.check proper:
 ;; http://dev.clojure.org/jira/browse/TCHECK-15

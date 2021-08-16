@@ -4,6 +4,11 @@
   (:require [clojure.test.check.generators :as gen]
             [#?(:clj clojure.core :cljs cljs.core) :as core]))
 
+(let [out *out*]
+  (defn- prn [& args]
+    (binding [*out* out]
+      (apply clojure.core/prn args))))
+
 (defn combine-mutual-gens
   "Combine the (direct) result of mutual-gens into a single generator using a disjunction."
   [mgs-result]

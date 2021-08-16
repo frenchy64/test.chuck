@@ -172,6 +172,7 @@
       combine-mutual-gens))
 
 (defn tagged-recursive-gen [tag tag->gen container-gen-fn scalar-gen]
+  (assert (some? tag))
   (or (tag->gen tag)
       (with-meta
         (gen/recursive-gen
@@ -180,17 +181,18 @@
               (container-gen-fn
                 (fn [next-gen]
                   (assert (gen/generator? next-gen))
-                  (assert (-> next-gen meta ::tagged-recursive-gen))
-                  (tagged-recursive-gen
-                    (::tag next-gen)
-                    tag->gen
-                    (::container-gen-fn next-gen)
-                    (::scalar-gen next-gen))))))
+                  (assert (-> next-gen meta ::tagged-recursive-gen)
+                          (meta next-gen))
+                  (let [[scalar-gen container-gen-fn] ((::->scalar+container-gen-fn (meta next-gen)))]
+                    (tagged-recursive-gen
+                      (::tag (meta next-gen))
+                      tag->gen
+                      container-gen-fn
+                      scalar-gen))))))
           scalar-gen)
         {::tagged-recursive-gen true
          ::tag tag
-         ::container-gen-fn container-gen-fn
-         ::scalar-gen scalar-gen})))
+         ::->scalar+container-gen-fn (fn [] [scalar-gen container-gen-fn])})))
 
 (defmacro defrecursive-gen [name container scalar]
   (let [kw (keyword (-> *ns* ns-name str) (str name))]
@@ -201,14 +203,18 @@
                              ~scalar))))
 
 (defn recursive-cases [tag]
-  (with-meta
-    (gen/bind (gen/return nil)
-              (fn [_]
-                (throw (Exception. "Empty recursive-cases"))))
-    {::tagged-recursive-gen true
-     ::tag tag
-     ::recursive-cases true
-     ::cases {}}))
+  (vary-meta
+    (tagged-recursive-gen
+      tag
+      {}
+      (fn [gen-for]
+        (throw (Exception. "Empty recursive-cases")))
+      (gen/bind (gen/return nil)
+                (fn [_]
+                  (throw (Exception. "Empty recursive-cases")))))
+    assoc
+    ::recursive-cases true
+    ::cases {}))
 
 (defn add-recursive-case [rc id container-fn-or-scalar]
   (assert (::recursive-cases (meta rc))
@@ -216,21 +222,18 @@
   (let [cases (assoc (::cases (meta rc)) id container-fn-or-scalar)
         [scalar-gens container-gen-fns] (mapv #(into {} (% (comp gen/generator? val)) cases)
                                               [filter remove])]
-    (with-meta
-      (let [d (delay
-                (cond->> (gen/one-of (vec (vals scalar-gens)))
-                  (seq container-gen-fns)
-                  (tagged-recursive-gen
-                    (::tag (meta rc))
-                    {}
-                    (fn [gen-for]
-                      (gen/one-of (mapv #(% gen-for) (vals container-gen-fns)))))))]
-        (gen/bind (gen/return nil)
-                  (fn [_] @d)))
-      {::tagged-recursive-gen true
-       ::tag (::tag (meta rc))
-       ::recursive-cases true
-       ::cases cases})))
+    (vary-meta
+      (let [scalar-gen (delay (gen/one-of (vec (vals scalar-gens))))] 
+        (tagged-recursive-gen
+          (::tag (meta rc))
+          {}
+          (fn [gen-for]
+            (gen/one-of (mapv #(% gen-for) (vals container-gen-fns))))
+          (gen/bind (gen/return nil)
+                    (fn [_] @scalar-gen))))
+      assoc
+      ::recursive-cases true
+      ::cases cases)))
 
 (defmacro defrecursive-cases [name]
   (let [id (keyword (-> *ns* ns-name str) (str name))]
@@ -240,7 +243,11 @@
          (with-meta
            (gen/bind (gen/return nil)
                      (fn [_#] @a#))
-           {::atom a#})))))
+           {::tagged-recursive-gen true
+            ::tag ~id
+            ::->scalar+container-gen-fn (fn []
+                                          (::->scalar+container-gen-fn @a#))
+            ::atom a#})))))
 
 (defmacro defrecursive-case [rc id container-fn-or-scalar]
   `(let [rc# ~rc]

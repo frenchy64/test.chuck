@@ -379,5 +379,6 @@
 
 (comment
   ((requiring-resolve 'clojure.repl/pst) 100)
+  (do Foo)
   (gen/sample Foo)
   )

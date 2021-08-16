@@ -8,7 +8,8 @@
             [clojure.test.check.properties :as prop
              #?@(:cljs [:include-macros true])]
             [com.gfredericks.test.chuck.generators :as gen'
-             #?@(:cljs [:include-macros true])]))
+             #?@(:cljs [:include-macros true])]
+            [com.gfredericks.test.chuck.recursive :as sut]))
 
 ;; # Mutually-recursive generators
 
@@ -35,17 +36,7 @@
                    (gen-for Pong)))
       (gen/return nil)))
 
-  (defrecursive-gen Ping
-    (fn [gen-for]
-      (gen/tuple (gen/return :ping)
-                 (gen-for Pong)))
-    (gen/return nil))
-
-  (defrecursive-gen Pong
-    (fn [gen-for]
-      (gen/tuple (gen/return :pong)
-                 (gen-for ::Ping)))
-    (gen/return nil))
+  
 
   (defmutualgen ping-pong-mutual-gen)
   (extend-mutual-gen
@@ -105,8 +96,8 @@
 (def ping-pong-gens
   "Generates nested alternating vectors like
   [:ping [:pong [:ping nil]]]
-  Uses lower-level gen'/mutual-gens."
-  (gen'/mutual-gens ping-pong-mutual-gens-args))
+  Uses lower-level sut/mutual-gens."
+  (sut/mutual-gens ping-pong-mutual-gens-args))
 
 (defn valid-ping? [v]
   (loop [v v
@@ -192,8 +183,8 @@
   (let [{:keys [ping pong]} ping-pong-gens]
     (gen/tuple ping
                pong
-               (gen'/combine-mutual-gens ping-pong-gens)
-               (gen'/mutual-gen ping-pong-mutual-gens-args))))
+               (sut/combine-mutual-gens ping-pong-gens)
+               (sut/mutual-gen ping-pong-mutual-gens-args))))
 
 (defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
   (prop/for-all
@@ -210,7 +201,7 @@
 ;; c := (has-result c e) | boolean
 ;; e := (if c e e) | integer | (+ e e)
 (def ast-gen
-  (gen'/mutual-gen
+  (sut/mutual-gen
     {:ce {:c {:has-result (fn [gen-for]
                             (gen/tuple (gen/return 'has-result)
                                        (gen-for [:ce :c])
@@ -233,7 +224,7 @@
   )
 
 (def ast-gen-smaller
-  (gen'/mutual-gen
+  (sut/mutual-gen
     {:ce {:c {:has-result (fn [gen-for]
                             (gen/tuple (gen/return 'has-result)
                                        (gen-for [:ce :c])
@@ -247,7 +238,7 @@
 
 #_
 (def ast-gen-smaller
-  (gen'/mutual-gen
+  (sut/mutual-gen
     {:ce {:c {:has-result (fn [gen-for]
                             (gen/tuple (gen/return 'has-result)
                                        (gen-for [:ce :c])
@@ -284,7 +275,7 @@
                        (last args))))
 
 (def mini-occ-gens
-  (gen'/mutual-gens
+  (sut/mutual-gens
     {:e {:x gen/symbol
          :if (fn [gen-for]
                (list-tuple (gen/return 'if)
@@ -354,8 +345,39 @@
 
 (comment
   (gen/generate
-    (gen'/combine-mutual-gens
+    (sut/combine-mutual-gens
       (:e mini-occ-gens))
     100)
   (do mini-occ-gens)
+  )
+
+;; defrecursive-gen
+
+(declare Pong)
+
+(sut/defrecursive-gen Ping
+  (fn [gen-for]
+    (gen/tuple (gen/return :ping)
+               (gen-for Pong)))
+  (gen/return nil))
+
+(sut/defrecursive-gen Pong
+  (fn [gen-for]
+    (gen/tuple (gen/return :pong)
+               (gen-for Ping)))
+  (gen/return nil))
+
+;; defmutual-cases
+(sut/defrecursive-cases Foo)
+(sut/defrecursive-case Foo
+  ::case1
+  (gen/return nil))
+(sut/defrecursive-case Foo
+  ::case2
+  (fn [gen-for]
+    (gen/vector (gen-for Foo))))
+
+(comment
+  ((requiring-resolve 'clojure.repl/pst) 100)
+  (gen/sample Foo)
   )

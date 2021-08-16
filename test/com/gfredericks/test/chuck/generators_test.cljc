@@ -1,5 +1,6 @@
 (ns com.gfredericks.test.chuck.generators-test
-  (:require [clojure.test.check.clojure-test
+  (:require [clojure.test :refer [deftest is]]
+            [clojure.test.check.clojure-test
              #?(:clj :refer :cljs :refer-macros) [defspec]]
             [clojure.test.check.generators :as gen]
             [#?(:clj clj-time.core :cljs cljs-time.core) :as ct]

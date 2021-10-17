@@ -237,7 +237,7 @@
 
 (defmacro defrecursive-cases [name]
   (let [id (keyword (-> *ns* ns-name str) (str name))]
-    `(def #_defonce ~name
+    `(defonce ~name
        (let [a# (atom (recursive-cases ~id)
                       :validator #(-> % meta ::recursive-cases))]
          (with-meta

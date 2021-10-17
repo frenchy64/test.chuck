@@ -169,12 +169,16 @@
     (is (false? (valid-pong? v))
         (pr-str v))))
 
-(defspec mutual-gens-ping-spec 100
+(defspec mutual-gens-ping-spec {:num-tests 100
+                                ;#_
+                                :seed 1634498746660}
   (prop/for-all
     [ping (:ping ping-pong-gens)]
     (valid-ping? ping)))
 
-(defspec mutual-gens-pong-spec 100
+(defspec mutual-gens-pong-spec {:num-tests 100
+                                ;#_
+                                :seed 1634498746641}
   (prop/for-all
     [ping (:pong ping-pong-gens)]
     (valid-pong? ping)))
@@ -186,7 +190,9 @@
                (sut/combine-mutual-gens ping-pong-gens)
                (sut/mutual-gen ping-pong-mutual-gens-args))))
 
-(defspec mutual-gens-juxtaposed-ping-pong-generator-spec 100
+(defspec mutual-gens-juxtaposed-ping-pong-generator-spec {:num-tests 100
+                                                          ;#_
+                                                          :seed 1634498746649}
   (prop/for-all
     [pp juxtaposed-ping-pong-generator]
     (and (vector? pp)
@@ -367,7 +373,8 @@
                (gen-for Ping)))
   (gen/return nil))
 
-;; defmutual-cases
+;; defrecursive-cases
+
 (sut/defrecursive-cases Foo)
 (sut/defrecursive-case Foo
   ::case1
@@ -381,4 +388,16 @@
   ((requiring-resolve 'clojure.repl/pst) 100)
   (do Foo)
   (gen/sample Foo)
+  )
+
+;; mini-occ + defrecursive-cases
+
+(sut/defrecursive-cases MO-E)
+(sut/defrecursive-case MO-E
+  :x gen/symbol)
+
+(comment
+  ((requiring-resolve 'clojure.repl/pst) 100)
+  (do Foo)
+  (gen/sample MO-E)
   )

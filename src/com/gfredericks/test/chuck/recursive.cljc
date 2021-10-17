@@ -246,7 +246,7 @@
            {::tagged-recursive-gen true
             ::tag ~id
             ::->scalar+container-gen-fn (fn []
-                                          (::->scalar+container-gen-fn @a#))
+                                          ((::->scalar+container-gen-fn @a#)))
             ::atom a#})))))
 
 (defmacro defrecursive-case [rc id container-fn-or-scalar]

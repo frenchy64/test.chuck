@@ -335,6 +335,7 @@
                                            (dec curr-height))))))
 
 
+;; Note: this is the old implementation--test.check has a approach strategy now.
 (defn bounded-recursive-gen
   "Same as gen/recursive-gen but allows a bound on both breadth and height.
   Height = Number of levels of nesting. Eg:
@@ -371,7 +372,7 @@
        [-2 13 -16 -4]
        [-3 -12 -1]
        [4 15]]]
-  There are atmost 2 nested levels, and no vector contains more than 10
+  There are at most 2 nested levels, and no vector contains more than 10
   elements."
   [container-gen-fn scalar-gen max-breadth max-height]
   (assert (gen/generator? scalar-gen)

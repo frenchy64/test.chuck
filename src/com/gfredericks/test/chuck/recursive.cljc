@@ -10,7 +10,7 @@
       (apply clojure.core/prn args))))
 
 (defn combine-mutual-gens
-  "Combine the (direct) result of mutual-gens into a single generator using a disjunction."
+  "Combine the (unchanged) result of `mutual-gens` into a single generator using a disjunction."
   [mgs-result]
   {:post [(gen/generator? %)]}
   (assert (map? mgs-result) (class mgs-result))
@@ -75,21 +75,15 @@
   )
 
 (defn mutual-gens
-  "Create a map of mutually-recursive generators.
+  "Create mutually-recursive generators.
 
-  scalar-gen is a generator for leaf values.
-
-  container-gen-fns is a map from identifiers to functions. Each function
-  takes a map from these identifiers to their generators and should return
-  a generator.
-
-  Returns a map of identifiers (from container-gen-fns) to their generators.
-
-  Combine with gen/one-of to combine into a single generator:
-  (gen/one-of (vec (vals (mutual-gens container-gen-fns scalar-gen))))"
-  [root-desc]
-  ;(prn "root-desc" root-desc)
-  (let [rec (fn rec [path desc gs]
+  Takes the same argument as `mutual-gen` and returns a value of the same shape as desc, except functions
+  are replaced by generators. Use `combine-mutual-gens` to combine into
+  a single generator, or `mutual-gen` as a shortcut for `(comp combine-mutual-gens mutual-gens)`."
+  [desc]
+  (let [root-desc desc
+        ;_ (prn "root-desc" root-desc)
+        rec (fn rec [path desc gs]
               {:pre [(vector? path)
                      (map? gs)
                      (every? gen/generator? (vals gs))]}
@@ -165,7 +159,36 @@
 
 
 (defn mutual-gen
-  ""
+  "Create a mutually recursive generator.
+
+  desc is recursively defined as either:
+  - a generator (base case), or
+  - a map from identifiers to functions (recursive case) or desc's.
+ 
+  Each function in a desc takes a 1-argument function that returns a generator
+  for a given path in the desc. The argument should be used to retrieve other
+  generators in the desc and then return a generator from the desc function.
+
+  desc examples:
+     ;; nil generator
+     (gen/return nil)
+
+     ;; generates nil, [1 nil], ['a nil], ['a [42 nil]], ...
+     {:LinkedList
+      {:cons (fn [gen-at]
+               (gen/tuple gen/any
+                          (gen-at [:LinkedList])))
+       :nil (gen/return nil)}}
+
+     ;; generates nil, [:ping nil], [:pong nil], [:ping [:pong nil]], [:pong [:ping nil]], ...
+     {:PingPongList
+      {:ping (fn [gen-at]
+               (gen/tuple (gen/return :ping)
+                          (gen-at [:PingPongList :pong])))
+       :pong (fn [gen-at]
+               (gen/tuple (gen/return :pong)
+                          (gen-at [:PingPongList :ping])))
+       :nil (gen/return nil)}}"
   [desc]
   (-> desc
       mutual-gens 
@@ -202,7 +225,7 @@
                              ~container
                              ~scalar))))
 
-(defn recursive-cases [tag]
+(defn empty-recursive-cases [tag]
   (vary-meta
     (tagged-recursive-gen
       tag
@@ -238,7 +261,7 @@
 (defmacro defrecursive-cases [name]
   (let [id (keyword (-> *ns* ns-name str) (str name))]
     `(defonce ~name
-       (let [a# (atom (recursive-cases ~id)
+       (let [a# (atom (empty-recursive-cases ~id)
                       :validator #(-> % meta ::recursive-cases))]
          (with-meta
            (gen/bind (gen/return nil)

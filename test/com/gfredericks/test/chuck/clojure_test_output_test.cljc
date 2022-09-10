@@ -94,6 +94,42 @@
               (get-in tc-report path))))
       (is (= [{'i 0}] (get-in tc-report [:shrunk :smallest]))))))
 
+(deftest a-test-with-an-uncaught-exception
+  (checking "uncaught" 10 [i gen/s-pos-int]
+    (testing "1" (throw (Exception.)))
+    (testing "2" (throw (Exception.)))))
+
+(deftest uncaught-exception-test
+  (let [[test-results out] (capture-report-counters-and-out #'a-test-with-an-uncaught-exception)
+        ;; shrunk map should be printed first
+        tc-report (read-string out)
+        ;; clearly distinguish between actual test returns and simulated ones
+        msg (with-out-str (pp/pprint (str/split-lines out)))]
+    (testing "clojure.test reporting"
+      (is (= test-results {:test 1, :pass 0, :fail 0, :error 1}))
+      #_
+      (is (str/includes? 
+            out
+            (str/join
+              \newline
+              ["all ints lt 5 test `testing` logging1"
+               "test `is` logging1"
+               "expected: (< i 5)"
+               "  actual: (not (< 5 5))"]))
+          msg)
+      #_
+      (is (str/includes?
+            out 
+            (str/join
+              \newline
+              ["all ints lt 5 test `testing` logging2"
+               "test `is` logging2"
+               "expected: (< i 5 6)"
+               "  actual: (not (< 5 5 6))"]))
+          msg))))
+
 (defn test-ns-hook []
-  (test-vars [#'failure-output-test
-              #'error-output-test]))
+  (let [run-uncaught-exception-test? (resolve 'io.github.frenchy64.fully-satisfies.uncaught-testing-contexts/-run-test-body)]
+    (test-vars (cond-> [#'failure-output-test
+                        #'error-output-test]
+                 run-uncaught-exception-test? (conj #'uncaught-exception-test)))))

@@ -3,7 +3,8 @@
             [clojure.test.check.clojure-test :as tc.clojure-test]
             [com.gfredericks.test.chuck.properties :as prop
              #?@(:cljs [:include-macros true])]
-            #?(:clj  [clojure.test :as ct :refer [is testing]]
+            #?(:clj [io.github.frenchy64.fully-satisfies.uncaught-testing-contexts :refer [testing]])
+            #?(:clj  [clojure.test :as ct :refer [is]]
                :cljs [cljs.test :as ct :refer-macros [is testing]])))
 
 ;; exists in clojure.test.check.clojure-test v0.9.0
@@ -63,7 +64,9 @@
   [reports-atom f]
   #?(:clj
      (binding [ct/report #(swap! reports-atom conj (assoc % ::testing-contexts ct/*testing-contexts*))]
-       (f))
+       (if-let [-run-test-body (resolve 'io.github.frenchy64.fully-satisfies.uncaught-testing-contexts/-run-test-body)]
+         (-run-test-body f)
+         (f)))
 
      :cljs
      (binding [*chuck-captured-reports* reports-atom

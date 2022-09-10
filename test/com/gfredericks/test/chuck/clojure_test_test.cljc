@@ -1,5 +1,6 @@
 (ns com.gfredericks.test.chuck.clojure-test-test
-  (:require #?(:clj  [clojure.test :refer :all])
+  (:require #?(:clj [io.github.frenchy64.fully-satisfies.uncaught-testing-contexts :refer [deftest testing]])
+            #?(:clj  [clojure.test :refer [is]])
             #?(:cljs [cljs.test :refer-macros [deftest is]])
             [clojure.test.check :refer [quick-check]]
             [clojure.test.check.generators :as gen]

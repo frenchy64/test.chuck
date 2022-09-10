@@ -8,7 +8,8 @@
                  [org.clojure/test.check "1.1.0"]
                  [clj-time "0.15.2"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]
-                 [instaparse "1.4.10"]]
+                 [instaparse "1.4.10"]
+                 [io.github.frenchy64/fully-satisfies "1.7.1-SNAPSHOT"]]
   :deploy-repositories [["releases" :clojars]]
   :profiles {:ci {:jvm-opts ["-Xmx1g" "-server"]}}
   :plugins [[lein-cljsbuild "1.1.8"]

@@ -81,22 +81,72 @@
   (cond (map? num-tests-or-options)     (:num-tests num-tests-or-options tc.clojure-test/*default-test-count*)
         (integer? num-tests-or-options) num-tests-or-options))
 
+(defn get-current-time-millis
+  "Internal"
+  []
+  #?(:clj  (System/currentTimeMillis)
+     :cljs (.valueOf (js/Date.))))
+
 (defn options [num-tests-or-options]
-  (cond (map? num-tests-or-options)     (dissoc num-tests-or-options :num-tests)
-        (integer? num-tests-or-options) {}))
+  (-> (cond (map? num-tests-or-options)     (dissoc num-tests-or-options :num-tests)
+            (integer? num-tests-or-options) {})
+      (update :seed #(or % (get-current-time-millis)))))
+
+(defn counting-reporter-fn [f atm]
+  (fn [{:keys [num-tests] :as r}]
+    (when (integer? num-tests)
+      (swap! atm max num-tests))
+    (when f
+      (f r))))
+
+(defn -exception-thrown-report
+  "Internal"
+  [property e trial-number seed start-time reporter-fn]
+  (let [failed-after-ms (- (get-current-time-millis) start-time)]
+    {:type :failure
+     :failed-after-ms failed-after-ms
+     :num-tests trial-number
+     :pass? false
+     :property property
+     :result e
+     :result-data {:clojure.test.check.properties/error e}
+     :seed seed}))
+
+(defn -report-generator-exception
+  "Internal"
+  [{:keys [seed current-iteration]}]
+  (with-test-out*
+    #(println (str "\n\nError thrown by test during iteration " current-iteration
+                   "\nSeed: " seed))))
 
 (defmacro qc-and-report-exception
   [final-reports num-tests-or-options bindings & body]
   `(report-exception-or-shrunk
      (let [num-tests-or-options# ~num-tests-or-options
-           final-reports# ~final-reports]
-       (apply tc/quick-check
-         (times num-tests-or-options#)
-         (prop/for-all ~bindings
-           (let [reports# (capture-reports ~@body)]
-             (swap! final-reports# save-to-final-reports reports#)
-             (pass? reports#)))
-         (apply concat (options num-tests-or-options#))))))
+           final-reports# ~final-reports
+           so-far-atm# (atom 0)
+           options-map# (-> (options num-tests-or-options#)
+                            (update :reporter-fn counting-reporter-fn so-far-atm#))
+           with-captured-reports# (fn [f#]
+                                    (let [reports# (capture-reports (f#))]
+                                      (swap! final-reports# save-to-final-reports reports#)
+                                      reports#))
+           property# (prop/for-all ~bindings
+                       (pass? (with-captured-reports# (fn [] (do ~@body)))))
+           start-time# (get-current-time-millis)]
+       (try (apply tc/quick-check
+             (times num-tests-or-options#)
+             property#
+             (apply concat options-map#))
+            (catch #?(:clj  Throwable
+                      :cljs :default) e#
+              (let [reporter-fn# (:reporter-fn options-map#)
+                    r# (-exception-thrown-report
+                         property# e# (inc @so-far-atm#) (:seed options-map#)
+                         start-time# reporter-fn#)]
+                (with-captured-reports#
+                  #(reporter-fn# r#))
+                r#))))))
 
 (defn -testing
   [name func]

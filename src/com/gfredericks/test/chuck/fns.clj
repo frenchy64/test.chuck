@@ -134,12 +134,15 @@
       (gen/return
         (let [a (atom (gen/lazy-random-states (-random seed)))]
           (fn [& args]
+            (prn "call")
             (gen-root options
                       (seeded
                         (fn [seed]
+                          (prn "seed" seed)
                           (let [options (assoc options :seed seed)
                                 seed (summarize-value args options)]
-                            (gen/generate output size seed))))
+                            (gen/return
+                              (gen/generate output size seed)))))
                       (ffirst (swap-vals! a rest))
                       size)))))))
 
@@ -148,9 +151,10 @@
      (mapv (gen/generate (pure-fn-gen gen/any-printable) 3 1)
            (repeat 10 45644666)))
 
-  (= [#{} #uuid "709ca02d-8f95-4c0e-a3e0-279373fa23ef" #{} #{} [] (\{) #{} () #{} ()]
-     (mapv ((gen/generate (impure-fn-gen gen/any-printable) 3 1) 1)
+  (= '[{} {} [-2.0] [] [#uuid "e25dcee2-4b3c-493a-acb7-f5bbf30ca2d1"] {} [f1] () [] {13788N 1.625}]
+     (mapv (gen/generate (impure-fn-gen gen/any-printable) 3 1)
            (repeat 10 45644666)))
-  ((gen/generate (impure-fn-gen gen/any) 4 1)
-   45644666)
+  (= '[#{} {} (3 \e) (#uuid "7274f537-d060-4e4b-8c9f-611b69c99efd" :s) {} 0 #{} [1.0] () []]
+     (mapv (gen/generate (impure-fn-gen gen/any-printable) 3 1)
+           (repeat 10 4564466)))
   )

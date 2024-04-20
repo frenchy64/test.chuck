@@ -3,33 +3,15 @@
             [clojure.test.check.random :as random]
             [clojure.test.check.rose-tree :as rose]))
 
-(defn seeded
-  "Creates a generator that depends on the seed parameter.
-  `sized-gen` is a function that takes an integer and returns
-  a generator.
-
-  Examples:
-
-      ;; generates an :int with the same seed as the outer sample.
-      (gen/sample (seeded (fn [seed]
-                            (gen/tuple (gen/return seed)
-                                       (generator :int {:seed seed})))))
-      => ([-9189345824394269271 0]
-          [2069340105756572361 -1]
-          [-382523443817476848 -1]
-          [-727106358269903677 0]
-          [3041036363633372983 -1]
-          [-3816606844531533988 1]
-          [-5643022030666591503 -1]
-          [7456223948749621027 -1]
-          [5327329620473603684 34]
-          [8284970028005224634 12])"
-  [seeded-gen]
-  (#'gen/make-gen ;;FIXME bb
-   (fn [^clojure.test.check.random.JavaUtilSplittableRandom rnd size]
-     (let [seeded-gen (seeded-gen (or (.-state rnd)
-                                      (throw (ex-info "Failed to recover seed" {:rnd rnd}))))]
-       (gen/call-gen seeded-gen rnd size)))))
+(defn ^:private randomized
+  "Like sized, but passes an rng instead of a size."
+  [func]
+  (#'gen/make-gen (fn [rng size]
+                    (let [[r1 r2] (random/split rng)]
+                      (gen/call-gen
+                        (func r1)
+                        r2
+                        size)))))
 
 (defn- gen-root [options gen rnd size]
   (rose/root (gen/call-gen gen rnd size)))
@@ -72,48 +54,49 @@
 (defn- summarize-string [x]
   (non-zero (reduce #(unchecked-add %1 (int %2)) 0 x)))
 
-(defn summarize-value [x {:keys [seed size] :as options}]
-  (let [n (letfn [(summarize-ident [x]
-                    (non-zero (unchecked-add (unknown (namespace x))
-                                             (unknown (name x)))))
-                  (unknown [x]
-                    (non-zero
-                      (cond
-                        (boolean? x) (if x -1 1)
-                        (int? x) x
-                        (string? x) (summarize-string x)
-                        (ident? x) (summarize-ident x)
-                        (coll? x) (reduce #(unchecked-add %1 (unknown %2)) 0
-                                          (eduction
-                                            (if (and (seq? x)
-                                                     (sequential? x)
-                                                     (not (counted? x)))
-                                              ;; handle infinite seqs
-                                              (take 32)
-                                              identity)
-                                            x))
-                        (fn? x) 64
-                        (ifn? x) -64
-                        (instance? java.math.BigInteger x) (unknown (.toPlainString ^java.math.BigInteger x))
-                        (instance? clojure.lang.BigInt x) (unknown (str x))
-                        (instance? java.math.BigDecimal x) (unknown (.toPlainString ^java.math.BigDecimal x))
-                        (instance? Float x) (Float/floatToIntBits x)
-                        (instance? Double x) (Double/doubleToLongBits x)
-                        (instance? java.util.concurrent.atomic.AtomicInteger x) (.longValue ^java.util.concurrent.atomic.AtomicInteger x)
-                        (instance? java.util.concurrent.atomic.AtomicLong x) (.longValue ^java.util.concurrent.atomic.AtomicLong x)
-                        (instance? clojure.lang.IAtom2 x) (unchecked-add (unknown @x) 1024)
-                        :else 456456456)))]
-            (unchecked-multiply
-              (unknown x)
-              (unchecked-inc size)))]
-    (unchecked-add n seed)))
+;; size == how much 2^64 span we generate in?
+;; or
+;; size == number of conditional returns other than the default one in the generated fn?
+;; or both?
+(defn summarize-value [x {:keys [rng] :as options}]
+  (letfn [(summarize-ident [x]
+            (non-zero (unchecked-add (unknown (namespace x))
+                                     (unknown (name x)))))
+          (unknown [x]
+            (non-zero
+              (cond
+                (boolean? x) (if x -1 1)
+                (int? x) x
+                (string? x) (summarize-string x)
+                (ident? x) (summarize-ident x)
+                (coll? x) (reduce #(unchecked-add %1 (unknown %2)) 0
+                                  (eduction
+                                    (if (and (seq? x)
+                                             (sequential? x)
+                                             (not (counted? x)))
+                                      ;; handle infinite seqs
+                                      (take 32)
+                                      identity)
+                                    x))
+                (fn? x) 64
+                (ifn? x) -64
+                (instance? java.math.BigInteger x) (unknown (.toPlainString ^java.math.BigInteger x))
+                (instance? clojure.lang.BigInt x) (unknown (str x))
+                (instance? java.math.BigDecimal x) (unknown (.toPlainString ^java.math.BigDecimal x))
+                (instance? Float x) (Float/floatToIntBits x)
+                (instance? Double x) (Double/doubleToLongBits x)
+                (instance? java.util.concurrent.atomic.AtomicInteger x) (.longValue ^java.util.concurrent.atomic.AtomicInteger x)
+                (instance? java.util.concurrent.atomic.AtomicLong x) (.longValue ^java.util.concurrent.atomic.AtomicLong x)
+                (instance? clojure.lang.IAtom2 x) (unchecked-add (unknown @x) 1024)
+                :else 456456456)))]
+    (unchecked-add (unknown x) (random/rand-long rng))))
 
 (defn fn-gen* [->fn-gen]
   (gen/sized
     (fn [size]
-      (seeded
-        (fn [seed]
-          (let [options {:seed seed :size size}]
+      (randomized
+        (fn [rng]
+          (let [options {:rng rng :size size}]
             (->fn-gen options)))))))
 
 (defn fn-gen [fn-return]
@@ -125,36 +108,32 @@
 
 (defn pure-fn-gen [output]
   (fn-gen
-    (fn [args {:keys [size seed] :as options}]
+    (fn [args {:keys [size] :as options}]
       (gen/generate output size (summarize-value args options)))))
 
 (defn impure-fn-gen [output]
   (fn-gen*
-    (fn [{:keys [size seed] :as options}]
-      (gen/return
-        (let [a (atom (gen/lazy-random-states (-random seed)))]
-          (fn [& args]
-            (prn "call")
-            (gen-root options
-                      (seeded
-                        (fn [seed]
-                          (prn "seed" seed)
-                          (let [options (assoc options :seed seed)
-                                seed (summarize-value args options)]
-                            (gen/return
-                              (gen/generate output size seed)))))
-                      (ffirst (swap-vals! a rest))
-                      size)))))))
+    (fn [{:keys [size rng] :as options}]
+      (let [a (atom (gen/lazy-random-states rng))]
+        (fn [& args]
+          (gen-root options
+                    (randomized
+                      (fn [rng]
+                        (let [options (assoc options :rng rng)
+                              seed (summarize-value args options)]
+                          (gen/return
+                            (gen/generate output size seed)))))
+                    (ffirst (swap-vals! a rest))
+                    size))))))
+
+(defn instrument [a path v]
+  (if (fn? v)
+    (fn [& args]
+      (let [r (apply v args)]
+        (swap! a update-in (conj path ))
+        r))
+    v))
 
 (comment
-  (= [#{\M} #{\M} #{\M} #{\M} #{\M} #{\M} #{\M} #{\M} #{\M} #{\M}]
-     (mapv (gen/generate (pure-fn-gen gen/any-printable) 3 1)
-           (repeat 10 45644666)))
 
-  (= '[{} {} [-2.0] [] [#uuid "e25dcee2-4b3c-493a-acb7-f5bbf30ca2d1"] {} [f1] () [] {13788N 1.625}]
-     (mapv (gen/generate (impure-fn-gen gen/any-printable) 3 1)
-           (repeat 10 45644666)))
-  (= '[#{} {} (3 \e) (#uuid "7274f537-d060-4e4b-8c9f-611b69c99efd" :s) {} 0 #{} [1.0] () []]
-     (mapv (gen/generate (impure-fn-gen gen/any-printable) 3 1)
-           (repeat 10 4564466)))
   )

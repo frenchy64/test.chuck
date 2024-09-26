@@ -42,7 +42,7 @@
 (defn ^:private re?
   "Checks if the string compiles with re-pattern."
   [s]
-  (try (and (re-pattern s) true)
+  (try (do (re-pattern s) true)
        (catch java.util.regex.PatternSyntaxException _e
          false)))
 
